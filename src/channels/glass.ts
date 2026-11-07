@@ -2,7 +2,7 @@ import { HOME, KIOSK } from '../lib/dom';
 import { tr } from '../lib/i18n';
 import { distanceKm, locate, type Spot } from '../lib/locate';
 import { Feed, getJson } from '../lib/net';
-import { ART, waiting, type Encoding, type Frame, type Label, type Poster, type Tip } from '../lib/poster';
+import { ART, SHEET_W, waiting, type Encoding, type Frame, type Label, type Poster, type Tip } from '../lib/poster';
 import { glide } from '../lib/stats';
 import { INK } from '../lib/theme';
 
@@ -11,7 +11,6 @@ const STAGE_W = 420;
 const STAGE_H = 500;
 const REVEAL_SEC = 1.2;
 const RIBS = 30;
-const SEAM = 0.04;
 const BEND = 3;
 const ZOOM = 1.2;
 const FRAME_SEC = 0.9;
@@ -250,14 +249,18 @@ export class Windows implements Poster {
   private rib(ctx: CanvasRenderingContext2D, stage: HTMLCanvasElement, col: number): void {
     const width = ART.w / RIBS;
     const { from, span } = ribSource(col, RIBS, BEND, STAGE_W);
-    for (const flip of [1, -1]) {
-      ctx.save();
-      ctx.translate(ART.x + (col + 0.5) * width, ART.y);
-      ctx.scale(flip, 1);
-      // Лёгкий нахлёст закрывает светлый шов между рёбрами
-      ctx.drawImage(stage, from, 0, span / 2, STAGE_H, -SEAM, 0, width / 2 + SEAM * 2, ART.h);
-      ctx.restore();
-    }
+    // Края стоят точно по пикселям холста: дробный край старый Safari размывает, и на стыке виден светлый шов
+    const k = ctx.canvas.width / SHEET_W;
+    const snap = (x: number) => Math.round(x * k) / k;
+    const left = snap(ART.x + col * width);
+    const middle = snap(ART.x + (col + 0.5) * width);
+    const right = snap(ART.x + (col + 1) * width);
+    ctx.drawImage(stage, from, 0, span / 2, STAGE_H, middle, ART.y, right - middle, ART.h);
+    ctx.save();
+    ctx.translate(middle, ART.y);
+    ctx.scale(-1, 1);
+    ctx.drawImage(stage, from, 0, span / 2, STAGE_H, 0, 0, middle - left, ART.h);
+    ctx.restore();
   }
 
   draw({ ctx, dt }: Frame): void {
@@ -266,6 +269,8 @@ export class Windows implements Poster {
     this.clock += dt;
     const stage = this.paintStage(this.reel);
     ctx.globalAlpha = Math.min(1, Math.max(0, this.reveal.x));
+    // Подложка из того же кадра: если между рёбрами останется щель, в ней будет снимок, а не светлая бумага
+    ctx.drawImage(stage, ART.x, ART.y, ART.w, ART.h);
     for (let col = 0; col < RIBS; col++) this.rib(ctx, stage, col);
     ctx.drawImage(this.paintShade(), ART.x, ART.y, ART.w, ART.h);
     ctx.globalAlpha = 1;
