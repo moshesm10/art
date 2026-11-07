@@ -1,3 +1,4 @@
+import { HOME } from './lib/dom';
 import { tr } from './lib/i18n';
 import type { Poster } from './lib/poster';
 import stages from './works-stages.json';
@@ -35,8 +36,8 @@ export function stageOf(work: Work, known: Record<string, string> = stages): Sta
   return known[work.slug] === 'ready' ? 'ready' : 'idea';
 }
 
-export const workPath = (work: Work) => `/work/${work.slug}/`;
-export const previewPath = (work: Work) => `/previews/${work.slug}.jpg`;
+export const workPath = (work: Work) => `${HOME}work/${work.slug}/`;
+export const previewPath = (work: Work) => `${HOME}previews/${work.slug}.jpg`;
 
 export function findWork(pathname: string, works = WORKS): Work | undefined {
   const slug = /^\/work\/([a-z0-9-]+)\/?$/.exec(pathname)?.[1];

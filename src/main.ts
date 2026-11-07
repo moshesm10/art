@@ -1,5 +1,6 @@
 import './lib/legacy';
 import '@fontsource-variable/jost/index.css';
+import { HOME, sitePath } from './lib/dom';
 import { LANG } from './lib/i18n';
 import { openGallery } from './pages/gallery';
 import { openKiosk } from './pages/kiosk';
@@ -9,9 +10,10 @@ import { findWork } from './works';
 document.documentElement.lang = LANG;
 
 const app = document.querySelector<HTMLElement>('#app')!;
-const work = findWork(location.pathname);
+const path = sitePath(location.pathname);
+const work = findWork(path);
 
-if (/^\/kiosk\/?$/.test(location.pathname)) void openKiosk(app);
+if (/^\/kiosk\/?$/.test(path)) void openKiosk(app);
 else if (work) void openWork(app, work);
-else if (location.pathname === '/') openGallery(app);
-else location.replace('/');
+else if (path === '/') openGallery(app);
+else location.replace(HOME);

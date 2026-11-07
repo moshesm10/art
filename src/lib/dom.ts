@@ -1,7 +1,11 @@
 import { LANG, LANGS, setLang } from './i18n';
 
+// На GitHub Pages сайт живёт в подпапке, на дев-сервере в корне
+export const HOME = import.meta.env.BASE_URL;
+export const sitePath = (pathname: string) => pathname.slice(HOME.length - 1);
+
 // Киоск показывает работы без зрителя за экраном и на слабом устройстве
-export const KIOSK = typeof location !== 'undefined' && location.pathname.startsWith('/kiosk');
+export const KIOSK = typeof location !== 'undefined' && sitePath(location.pathname).startsWith('/kiosk');
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = '', parent?: HTMLElement): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);

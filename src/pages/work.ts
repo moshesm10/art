@@ -1,5 +1,5 @@
 import { TOUR_MS } from '../config';
-import { button, el, langSwitch, link, setText, toggleFullscreen } from '../lib/dom';
+import { button, el, HOME, langSwitch, link, setText, toggleFullscreen } from '../lib/dom';
 import { fmtDay } from '../lib/format';
 import { tr } from '../lib/i18n';
 import { mapLink, mapPreview } from '../lib/locate';
@@ -16,9 +16,9 @@ export async function openWork(app: HTMLElement, work: Work): Promise<void> {
   const poster = await work.load();
 
   const bar = el('header', 'bar', app);
-  link(tr('Пульс', 'Pulse'), '/', el('h1', 'brand', bar), 'home');
+  link(tr('Пульс', 'Pulse'), HOME, el('h1', 'brand', bar), 'home');
   const controls = el('nav', 'controls', bar);
-  link(tr('Все работы', 'All works'), '/', controls);
+  link(tr('Все работы', 'All works'), HOME, controls);
 
   const wall = el('main', 'wall', app);
   const root = el('figure', 'hung active', wall);
@@ -123,7 +123,7 @@ export async function openWork(app: HTMLElement, work: Work): Promise<void> {
 
   addEventListener('keydown', (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key === 'Escape') location.assign('/');
+    if (e.key === 'Escape') location.assign(HOME);
     else if (e.key === 'ArrowRight') location.assign(workPath(next));
     else if (e.key === 'ArrowLeft') location.assign(workPath(previous));
     else if (e.key === 'a' || e.key === 'ф') toggleTour();

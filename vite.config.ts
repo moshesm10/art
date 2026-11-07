@@ -73,10 +73,12 @@ const pages: Plugin = {
   },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // GitHub Pages отдаёт репозиторий art из подпапки с тем же именем
+  base: command === 'build' ? '/art/' : '/',
   plugins: [stages, pages],
   server: { proxy },
   preview: { proxy },
   // Киоск работает на iPad mini 2, выше iOS 12 он не обновляется
   build: { target: 'safari12', cssTarget: 'safari12' },
-});
+}));

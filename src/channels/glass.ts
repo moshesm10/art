@@ -1,4 +1,4 @@
-import { KIOSK } from '../lib/dom';
+import { HOME, KIOSK } from '../lib/dom';
 import { tr } from '../lib/i18n';
 import { distanceKm, locate, type Spot } from '../lib/locate';
 import { Feed, getJson } from '../lib/net';
@@ -150,7 +150,7 @@ export class Windows implements Poster {
 
   // В сборке нет ключа Windy, поэтому камеры приходят из списка, который запёк scripts/cams.mjs
   private async useBakedCams(near: Spot | null): Promise<void> {
-    const cams = parseCams(await getJson<{ webcams?: RawCam[] }>('/cams.json'));
+    const cams = parseCams(await getJson<{ webcams?: RawCam[] }>(`${HOME}cams.json`));
     this.cams = near
       ? cams.sort((a, b) => distanceKm(a, near) - distanceKm(b, near)).slice(0, NEAR_CAMS).reverse()
       : cams.sort(() => Math.random() - 0.5);

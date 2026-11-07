@@ -1,5 +1,5 @@
 import { KIOSK_MS, KIOSK_RETRY_MS } from '../config';
-import { el } from '../lib/dom';
+import { el, HOME } from '../lib/dom';
 import { worstFeed } from '../lib/net';
 import { paintSheet, SHEET_H, SHEET_W } from '../lib/poster';
 import { stageOf, WORKS } from '../works';
@@ -11,8 +11,8 @@ const FRAME_MS = 1000 / 30;
 // Смена работы перезагружает страницу: так старое устройство каждый раз освобождает память.
 // Без сети перезагрузка оставила бы экран с ошибкой навсегда, поэтому постер ждёт, пока сайт снова ответит
 async function moveTo(slug: string): Promise<void> {
-  const res = await fetch('/kiosk/', { cache: 'no-store' }).catch(() => null);
-  if (res?.ok) location.assign(`/kiosk/?work=${slug}`);
+  const res = await fetch(`${HOME}kiosk/`, { cache: 'no-store' }).catch(() => null);
+  if (res?.ok) location.assign(`${HOME}kiosk/?work=${slug}`);
   else setTimeout(() => void moveTo(slug), KIOSK_RETRY_MS);
 }
 
