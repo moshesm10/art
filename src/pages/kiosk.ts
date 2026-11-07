@@ -46,7 +46,6 @@ export async function openKiosk(app: HTMLElement): Promise<void> {
   });
   const ctx = canvas.getContext('2d')!;
   const poster = await work.load();
-  document.body.style.background = poster.paper();
   // Новое место должно успеть побыть на экране, поэтому тап откладывает смену работы
   canvas.addEventListener('click', () => {
     poster.shuffle();
@@ -69,6 +68,7 @@ export async function openKiosk(app: HTMLElement): Promise<void> {
     requestAnimationFrame(paint);
     if (t - last < FRAME_MS) return;
     const now = Date.now();
+    document.body.style.background = poster.paper();
     paintSheet(ctx, poster, now, Math.min(0.25, (t - last) / 1000));
     last = t;
     canvas.dataset.status = worstFeed(poster.feeds, now).status(now);

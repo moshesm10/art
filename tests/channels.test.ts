@@ -5,7 +5,7 @@ import { editRadius, LANGS, langColumn, parseEdit, parsePost, stack, traceX } fr
 import { azimuthal, depthInk, parseQuakes, presence, quakeRadius } from '../src/channels/sensors';
 import { gridFor, leadShare, leadSpan, matchProgress, parseScoreboard, rankMatches, teamInks, type Match } from '../src/channels/sports';
 import { archPoint, bandOf, bearing, bearingFocus, meanBearing, parseAircraft, phaseOf, shortestTurn } from '../src/channels/transport';
-import { airRings, aqiLabel, atHour, closeLoop, lineVisibility, parseWeather, precipFeel, rainLevel, riverPath, sunOrbit, sunTimes, type Hour } from '../src/channels/weather';
+import { airRings, aqiLabel, atHour, closeLoop, lineVisibility, nightBands, parseWeather, precipFeel, rainLevel, riverPath, sunOrbit, sunTimes, type Hour } from '../src/channels/weather';
 import { coverCrop, lightOf, parseCams as parseWindyCams, parseSlides, ribSource, worthShowing } from '../src/channels/glass';
 import { flakeCount, moonPhase, parseAir, parseArrival, reach, skyAt, sunAltitude, trainColor, waitText } from '../src/channels/platform';
 import { beamAt, buildScene, castShadows, dotAlpha, elevation, oblique, r2, terrain, tileOf } from '../src/channels/relief';
@@ -148,6 +148,16 @@ describe('markets', () => {
 });
 
 describe('weather', () => {
+  it('lays the night hours across the river as bands', () => {
+    const t = Date.UTC(2026, 0, 1, 0);
+    const forecast = { name: 'A', tz: 'UTC', sunrise: t + 6 * 3_600_000, sunset: t + 18 * 3_600_000, hours: [{ t, temp: 0, rain: 0, mm: 0, wind: 0, cloud: 0, aqi: null }] };
+    const samples = Array.from({ length: 25 }, (_, h) => ({ x: 0, y: 100 - h * 4, rain: 0, wind: 0, hour: h }));
+    expect(nightBands(samples, forecast)).toEqual([
+      { top: 80, bottom: 100 },
+      { top: 4, bottom: 24 },
+    ]);
+  });
+
   const step = (time: string, mm?: number) => ({
     time,
     data: {

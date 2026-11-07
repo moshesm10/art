@@ -6,12 +6,12 @@ import { locate, nearest } from '../lib/locate';
 import { Feed, getJson, poll } from '../lib/net';
 import { ART, clipArt, disc, waiting, type Encoding, type Frame, type Label, type Poster, type Tip } from '../lib/poster';
 import { clamp, famous } from '../lib/stats';
-import { alpha, INK, mixHex, tempPaper } from '../lib/theme';
+import { alpha, INK, tempPaper } from '../lib/theme';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 const LOOP_HOURS = 24;
-const SEC_PER_HOUR = 1;
+const SEC_PER_HOUR = 5;
 const STEPS_PER_HOUR = 6;
 const UNITS_PER_DEGREE = 4;
 const SEAM_HOURS = 5;
@@ -32,10 +32,9 @@ const MAX_AIR_RINGS = 5;
 const MS_TO_KMH = 3.6;
 const NO_RAIN_MM = 0.05;
 const POLL_MS = 15 * 60_000;
-
-const OVERCAST = '#c8c8c4';
-const NIGHT = '#20242d';
-const MOONLIGHT = '#ece7dc';
+// Картина должна успокаивать, поэтому рябь и осадки идут заметно медленнее настоящих
+const RIPPLE_PACE = 0.08;
+const FALL_PACE = 0.4;
 
 export interface Hour {
   t: number;
@@ -260,6 +259,19 @@ export function precipFeel(rain: number, mm: number): { share: number; speed: nu
   };
 }
 
+// Ночные часы реки: у нижнего края листа играющий час, поэтому полоса медленно сползает вниз вместе с водой
+export function nightBands(samples: Sample[], f: Forecast): { top: number; bottom: number }[] {
+  const bands: { top: number; bottom: number }[] = [];
+  let open = false;
+  for (const s of samples) {
+    const dark = sunOrbit(f.hours[0].t + s.hour * HOUR_MS, f.sunrise, f.sunset).height < 0;
+    if (dark && open) bands[bands.length - 1].top = s.y;
+    else if (dark) bands.push({ top: s.y, bottom: s.y });
+    open = dark;
+  }
+  return bands;
+}
+
 function scatter(count: number): Point[] {
   let seed = 11;
   const next = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -273,11 +285,12 @@ export class Weather implements Poster {
   readonly source = 'MET Norway';
   readonly kind = tr('другой город', 'another city');
   readonly align = 'right';
+  readonly ink = INK;
   readonly feeds = [new Feed('MET Norway', 40 * 60_000)];
   readonly encoding: Encoding = {
-    color: tr('Бумага теплеет с температурой часа, сереет от облаков, а после заката лист уходит в ночь.', 'The paper warms with the temperature of the hour, greys with cloud, and after sunset the sheet slips into night.'),
-    form: tr('Река — 24 часа прогноза, все часы одной высоты. Русло — температура: теплее вправо, холоднее влево, шаг на градус общий для всех городов. Больше ветра — больше линий, осадки их утолщают. Солнце мельчает при облаках, ночью становится кольцом. Кольца вокруг него — загрязнение воздуха, новое на каждые 50 пунктов индекса выше 50.', 'The river is 24 hours of forecast, every hour the same height. Its course is temperature: warmer to the right, colder to the left, with one step per degree for all cities. More wind means more lines, rain thickens them. The sun shrinks under cloud and becomes a ring at night. Rings around it are air pollution, a new one for every 50 index points above 50.'),
-    speed: tr('Час прогноза — секунда, петля 24 секунды, нижний край листа — играющий час. Ветер ускоряет рябь и наклоняет дождь. До 1 мм в час капли редкие и медленные, выше дождь густеет и разгоняется. При +0,5° и ниже идёт снег.', 'An hour of forecast is a second, the loop 24 seconds, the bottom edge of the sheet the hour now playing. Wind speeds the ripple and tilts the rain. Below 1 mm an hour drops are rare and slow, above that the rain thickens and quickens. At +0.5° and below it snows.'),
+    color: tr('Цвет бумаги — средняя температура суток в этом городе. При просмотре лист не меняется.', 'The colour of the paper is the average temperature of the day in this city. It stays the same as you watch.'),
+    form: tr('Река — 24 часа прогноза, все часы одной высоты. Русло — температура: теплее вправо, холоднее влево, шаг на градус общий для всех городов. Больше ветра — больше линий, осадки их утолщают. Ночь — тёмные полосы поперёк реки. Солнце мельчает при облаках, ночью становится кольцом. Кольца вокруг него — загрязнение воздуха, новое на каждые 50 пунктов индекса выше 50.', 'The river is 24 hours of forecast, every hour the same height. Its course is temperature: warmer to the right, colder to the left, with one step per degree for all cities. More wind means more lines, rain thickens them. Night is dark bands across the river. The sun shrinks under cloud and becomes a ring at night. Rings around it are air pollution, a new one for every 50 index points above 50.'),
+    speed: tr('Час прогноза идёт пять секунд, петля две минуты, нижний край листа — играющий час. Ветер ускоряет рябь и наклоняет дождь. До 1 мм в час капли редкие и медленные, выше дождь густеет. При +0,5° и ниже идёт снег.', 'An hour of forecast lasts five seconds, the loop two minutes, and the bottom edge of the sheet is the playing hour. Wind quickens the ripple and tilts the rain. Below 1 mm an hour drops are sparse and slow, above it the rain thickens. At +0.5° and below it snows.'),
   };
 
   private place = famous(CITIES);
@@ -285,6 +298,7 @@ export class Weather implements Poster {
   private refresh = () => {};
   private forecast: Forecast | null = null;
   private course: Course | null = null;
+  private tint = tempPaper(10);
   private origin = 0;
   private shown: Sample[] = [];
   private ripple = 0;
@@ -294,23 +308,17 @@ export class Weather implements Poster {
     return (((now - this.origin) / 1000 / SEC_PER_HOUR) % LOOP_HOURS + LOOP_HOURS) % LOOP_HOURS;
   }
 
-  private moment(now: number): { hour: Hour; height: number; across: number; night: number } | null {
+  private moment(now: number): { hour: Hour; height: number; across: number } | null {
     const f = this.forecast;
     if (!f) return null;
     const hour = atHour(f.hours, this.playhead(now));
     const { height, across } = sunOrbit(hour.t, f.sunrise, f.sunset);
-    return { hour, height, across, night: clamp(0.5 - height * 3.5, 0, 1) };
+    return { hour, height, across };
   }
 
+  // Лист не меняется при просмотре: его цвет — средняя температура суток, у каждого города свой
   paper(): string {
-    const m = this.moment(Date.now());
-    if (!m) return tempPaper(10);
-    const day = mixHex(tempPaper(m.hour.temp), OVERCAST, (m.hour.cloud / 100) * 0.3);
-    return mixHex(day, NIGHT, m.night * 0.94);
-  }
-
-  get ink(): string {
-    return mixHex(INK, MOONLIGHT, this.moment(Date.now())?.night ?? 0);
+    return this.tint;
   }
 
   start(): void {
@@ -333,6 +341,8 @@ export class Weather implements Poster {
           if (!this.forecast) this.origin = Date.now();
           this.forecast = parseWeather(place, met, air);
           this.course = course(this.forecast.hours);
+          const { hours } = this.forecast;
+          this.tint = tempPaper(hours.reduce((sum, h) => sum + h.temp, 0) / hours.length);
         },
       );
     });
@@ -366,7 +376,7 @@ export class Weather implements Poster {
     const { hour } = m;
     const parts = [this.clock(hour.t), fmtTemp(hour.temp), tr(`ветер ${fmtInt(hour.wind)} км/ч`, `wind ${fmtInt(hour.wind)} km/h`), this.rainText(hour.mm)];
     if (hour.aqi !== null) parts.push(aqiLabel(hour.aqi));
-    return { title: tr(this.place.name, this.place.en), print: `${parts.join(' · ')}. ${tr('Час прогноза за секунду.', 'An hour of forecast per second.')}` };
+    return { title: tr(this.place.name, this.place.en), print: `${parts.join(' · ')}. ${tr('Час прогноза идёт пять секунд.', 'An hour of forecast lasts five seconds.')}` };
   }
 
   private lines(ctx: CanvasRenderingContext2D, samples: Sample[], ink: string): void {
@@ -421,29 +431,16 @@ export class Weather implements Poster {
     else ctx.stroke();
   }
 
-  draw({ ctx, now, dt }: Frame): void {
-    const m = this.moment(now);
-    const way = this.course;
-    const f = this.forecast;
-    if (!m || !way || !f) return waiting(ctx, this.ink);
-
-    const { hour, height, across } = m;
-    const ink = this.ink;
-    this.ripple += dt * hour.wind * 0.3;
-    this.fall += dt * precipFeel(hour.rain, hour.mm).speed * (hour.temp <= 0.5 ? SNOW_PACE : 1);
-
-    ctx.save();
-    clipArt(ctx);
-    this.precipitation(ctx, hour, ink);
-
-    this.shown = reach(way, this.playhead(now));
-    this.lines(ctx, this.shown, ink);
-
+  private sun(ctx: CanvasRenderingContext2D, hour: Hour, height: number, across: number, ink: string, paper: string): void {
     const x = SUN_LEFT + (SUN_RIGHT - SUN_LEFT) * across;
     const y = ART.y + ART.h * (0.5 - height * 0.34);
     const r = 12 - (hour.cloud / 100) * 5.5;
     disc(ctx, x, y, r, ink);
-    disc(ctx, x, y, r * clamp(-height * 7, 0, 0.92), this.paper());
+    disc(ctx, x, y, r * clamp(-height * 7, 0, 0.92), paper);
+    this.airRings(ctx, hour, x, y, r, ink);
+  }
+
+  private airRings(ctx: CanvasRenderingContext2D, hour: Hour, x: number, y: number, r: number, ink: string): void {
     const rings = airRings(hour.aqi);
     ctx.lineWidth = 0.3;
     for (let i = 0; i < rings; i++) {
@@ -451,6 +448,40 @@ export class Weather implements Poster {
       ctx.beginPath();
       ctx.arc(x, y, r + AIR_RING_GAP * (i + 1), 0, Math.PI * 2);
       ctx.stroke();
+    }
+  }
+
+  private scene(ctx: CanvasRenderingContext2D, hour: Hour, height: number, across: number, ink: string, paper: string): void {
+    this.precipitation(ctx, hour, ink);
+    this.lines(ctx, this.shown, ink);
+    this.sun(ctx, hour, height, across, ink, paper);
+  }
+
+  draw({ ctx, now, dt }: Frame): void {
+    const m = this.moment(now);
+    const way = this.course;
+    const f = this.forecast;
+    if (!m || !way || !f) return waiting(ctx, this.ink);
+
+    const { hour, height, across } = m;
+    const { ink } = this;
+    const paper = this.paper();
+    this.ripple += dt * hour.wind * RIPPLE_PACE;
+    this.fall += dt * precipFeel(hour.rain, hour.mm).speed * FALL_PACE * (hour.temp <= 0.5 ? SNOW_PACE : 1);
+
+    ctx.save();
+    clipArt(ctx);
+    this.shown = reach(way, this.playhead(now));
+    const bands = nightBands(this.shown, f);
+    ctx.fillStyle = ink;
+    for (const { top, bottom } of bands) ctx.fillRect(ART.x, top, ART.w, bottom - top);
+    this.scene(ctx, hour, height, across, ink, paper);
+    if (bands.length) {
+      // Внутри ночи рисунок выворачивается: те же линии и солнце цветом бумаги на тёмном
+      ctx.beginPath();
+      for (const { top, bottom } of bands) ctx.rect(ART.x, top, ART.w, bottom - top);
+      ctx.clip();
+      this.scene(ctx, hour, height, across, paper, ink);
     }
     ctx.restore();
   }
