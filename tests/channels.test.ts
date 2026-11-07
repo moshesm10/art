@@ -6,7 +6,7 @@ import { azimuthal, depthInk, parseQuakes, presence, quakeRadius } from '../src/
 import { gridFor, leadShare, leadSpan, matchProgress, parseScoreboard, rankMatches, teamInks, type Match } from '../src/channels/sports';
 import { archPoint, bandOf, bearing, bearingFocus, meanBearing, parseAircraft, phaseOf, shortestTurn } from '../src/channels/transport';
 import { airRings, aqiLabel, atHour, closeLoop, lineVisibility, nightBands, parseWeather, precipFeel, rainLevel, riverPath, sunOrbit, sunTimes, type Hour } from '../src/channels/weather';
-import { coverCrop, lightOf, parseCams as parseWindyCams, parseSlides, ribSource, worthShowing } from '../src/channels/glass';
+import { coverCrop, isFresh, lightOf, parseCams as parseWindyCams, parseSlides, ribSource, worthShowing } from '../src/channels/glass';
 import { flakeCount, moonPhase, parseAir, parseArrival, reach, skyAt, sunAltitude, trainColor, waitText } from '../src/channels/platform';
 import { beamAt, buildScene, castShadows, dotAlpha, elevation, oblique, r2, terrain, tileOf } from '../src/channels/relief';
 import { CITIES } from '../src/data/cities';
@@ -740,6 +740,15 @@ describe('Стекло на камерах Windy', () => {
     const html = `slides: { preview: ['${url('preview', 1)}'], normal: ['${url('normal', 1)}','${url('normal', 2)}','${url('normal', 2)}'] }`;
     expect(parseSlides(html)).toEqual([url('normal', 1), url('normal', 2)]);
     expect(parseSlides('<html></html>')).toEqual([]);
+  });
+
+  it('skips a camera whose newest frame is hours old', () => {
+    const frame = (sec: number) => `https://imgproxy.windy.com/_/normal/plain/day/1/original/${sec}.jpg`;
+    const now = 1_794_000_000_000;
+    const hoursAgo = (h: number) => now / 1000 - h * 3600;
+    expect(isFresh([frame(hoursAgo(20)), frame(hoursAgo(1))], now)).toBe(true);
+    expect(isFresh([frame(hoursAgo(30)), frame(hoursAgo(7))], now)).toBe(false);
+    expect(isFresh([], now)).toBe(false);
   });
 
   it('skips cameras that are frozen, black or too short', () => {

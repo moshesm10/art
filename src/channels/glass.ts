@@ -15,6 +15,7 @@ const BEND = 3;
 const ZOOM = 1.2;
 const FRAME_SEC = 0.9;
 const MIN_FRAMES = 12;
+const FRESH_MS = 6 * 3_600_000;
 // Сутки камеры в памяти весят сотни мегабайт, а у iPad mini 2 всего гигабайт
 const AHEAD = KIOSK ? 1 : 3;
 const NEAR_KM = 250;
@@ -72,6 +73,12 @@ export function parseCams(json: { webcams?: RawCam[] }): Cam[] {
 // Плеер Windy держит кадры суток прямо в своей странице, от старых к новым
 export function parseSlides(html: string): string[] {
   return [...new Set(html.match(/https:\/\/imgproxy\.windy\.com\/_\/normal\/plain\/day\/\d+\/original\/\d+\.jpg/g) ?? [])];
+}
+
+// В имени кадра стоит время съёмки: сломанная камера может ещё долго отдавать старые снимки
+export function isFresh(slides: string[], now: number): boolean {
+  const taken = slides.map((url) => Number(/(\d+)\.jpg$/.exec(url)?.[1] ?? 0) * 1000);
+  return now - Math.max(0, ...taken) < FRESH_MS;
 }
 
 export function lightOf(pixels: Uint8ClampedArray): number {
@@ -164,7 +171,9 @@ export class Windows implements Poster {
   private async fetchReel(cam: Cam): Promise<Reel | null> {
     const res = await fetch(`/api/webcams/webcams/public/embed/player/${cam.id}/day`, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) return null;
-    const loaded = await Promise.allSettled(parseSlides(await res.text()).map(loadFrame));
+    const slides = parseSlides(await res.text());
+    if (!isFresh(slides, Date.now())) return null;
+    const loaded = await Promise.allSettled(slides.map(loadFrame));
     const frames = loaded.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []));
     return worthShowing(frames.map((frame) => this.measure(frame))) ? { cam, frames } : null;
   }

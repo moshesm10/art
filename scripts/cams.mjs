@@ -2,7 +2,7 @@
 // Ключ Windy нельзя отдавать в браузер, а кадры камер открыты, поэтому на сайт уезжает только готовый список
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const PAGES = 10;
+const PAGES = 20;
 const LIMIT = 50;
 const KINDS = 'beach,coast,mountain,city,lake,landscape,port';
 
