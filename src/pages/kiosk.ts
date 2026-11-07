@@ -19,7 +19,7 @@ async function moveTo(slug: string): Promise<void> {
 
 export async function openKiosk(app: HTMLElement): Promise<void> {
   document.body.classList.add('kiosk');
-  const works = WORKS.filter((w) => stageOf(w) === 'ready');
+  const works = WORKS.filter((w) => stageOf(w) === 'ready' && w.kiosk !== false);
   const wanted = new URLSearchParams(location.search).get('work');
   const work = works.find((w) => w.slug === wanted) ?? works[Math.floor(Math.random() * works.length)];
   const at = works.indexOf(work);

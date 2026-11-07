@@ -11,6 +11,8 @@ export interface Work {
   title: string;
   date: string;
   load: () => Promise<Poster>;
+  // Работа не по силам iPad, поэтому киоск её пропускает
+  kiosk?: false;
 }
 
 // Реестр выпусков: новая работа — одна запись. Код работы грузится только на её странице
@@ -21,7 +23,7 @@ const ALL_WORKS: Work[] = [
   { no: 4, slug: 'sports', title: tr('Спорт', 'Sport'), date: '2026-11-05', load: async () => new (await import('./channels/sports')).Sports() },
   { no: 5, slug: 'network', title: tr('Сеть', 'Network'), date: '2026-11-05', load: async () => new (await import('./channels/social')).Social() },
   { no: 6, slug: 'earth', title: tr('Земля', 'Earth'), date: '2026-11-05', load: async () => new (await import('./channels/sensors')).Sensors() },
-  { no: 7, slug: 'relief', title: tr('Рельеф', 'Relief'), date: '2026-11-05', load: async () => new (await import('./channels/relief')).Relief() },
+  { no: 7, slug: 'relief', title: tr('Рельеф', 'Relief'), date: '2026-11-05', load: async () => new (await import('./channels/relief')).Relief(), kiosk: false },
   { no: 8, slug: 'platform', title: tr('Последний поезд', 'Last Train'), date: '2026-11-06', load: async () => new (await import('./channels/platform')).Platform() },
   { no: 9, slug: 'glass', title: tr('Окно', 'Window'), date: '2026-11-06', load: async () => new (await import('./channels/glass')).Windows() },
   { no: 10, slug: 'chain', title: tr('Блокчейн', 'Blockchain'), date: '2026-11-06', load: async () => new (await import('./channels/chain')).Blocks() },
