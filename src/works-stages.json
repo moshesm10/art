@@ -1,0 +1,10 @@
+{
+  "markets": "ready",
+  "weather": "ready",
+  "sky": "idea",
+  "sports": "idea",
+  "network": "idea",
+  "earth": "idea",
+  "relief": "ready",
+  "glass": "ready"
+}
